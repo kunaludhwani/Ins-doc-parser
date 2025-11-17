@@ -1,18 +1,31 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import FileUpload from './components/FileUpload'
 import ResultDisplay from './components/ResultDisplay'
 import Header from './components/Header'
+import { trackFileUpload, trackAnalysisComplete, trackError, trackUserAction, trackPageView } from './utils/analytics'
 import './App.css'
 
 function App() {
     const [result, setResult] = useState(null)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState(null)
+    const [uploadStartTime, setUploadStartTime] = useState(null)
+
+    // Track initial page view
+    useEffect(() => {
+        trackPageView('/')
+    }, [])
 
     const handleUpload = async (file) => {
+        const startTime = Date.now()
+        setUploadStartTime(startTime)
         setIsLoading(true)
         setError(null)
         setResult(null)
+
+        // Track file upload event
+        const fileExtension = file.name.split('.').pop().toLowerCase()
+        trackFileUpload(`.${fileExtension}`, file.size)
 
         const formData = new FormData()
         formData.append('file', file)
@@ -29,13 +42,25 @@ function App() {
 
             if (response.ok && data.status === 'success') {
                 setResult(data)
+
+                // Track successful analysis
+                const processingTime = Date.now() - startTime
+                trackAnalysisComplete(data.is_insurance, processingTime)
             } else {
                 // Handle error responses from backend
-                setError(data.detail || data.message || 'An error occurred while processing your file.')
+                const errorMessage = data.detail || data.message || 'An error occurred while processing your file.'
+                setError(errorMessage)
+
+                // Track error
+                trackError('api_error', errorMessage)
             }
         } catch (err) {
-            setError('Failed to connect to the server. Please ensure the backend is running.')
+            const errorMessage = 'Failed to connect to the server. Please ensure the backend is running.'
+            setError(errorMessage)
             console.error('Error:', err)
+
+            // Track connection error
+            trackError('connection_error', err.message)
         } finally {
             setIsLoading(false)
         }
@@ -44,6 +69,10 @@ function App() {
     const handleReset = () => {
         setResult(null)
         setError(null)
+
+        // Track reset action
+        trackUserAction('analyze_another_document')
+        trackPageView('/')
     }
 
     return (
