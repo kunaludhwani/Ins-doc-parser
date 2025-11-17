@@ -87,7 +87,7 @@ export default function FileUpload({ onUpload, isLoading, error }) {
                     <p className="text-sm text-gray-500 mb-6">
                         Supported formats: PDF, DOC, DOCX, JPG, PNG
                         <br />
-                        Max file size: 50 MB | Max pages: 50 (PDF)
+                        Max file size: 50 MB | Max pages: 100 (PDF)
                     </p>
 
                     <motion.button

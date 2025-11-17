@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     # File Upload Settings
     MAX_FILE_SIZE_MB: int = 50
-    MAX_PAGES: int = 50
+    MAX_PAGES: int = 100
     ALLOWED_EXTENSIONS: list = [
         ".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]
 

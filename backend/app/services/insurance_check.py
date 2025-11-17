@@ -33,35 +33,61 @@ async def classify_document_with_ai(text: str) -> dict:
             messages=[
                 {
                     "role": "system",
-                    "content": """You are a document classification expert. Analyze the provided document text and determine:
-1. Is this an insurance-related document? (policy, claim form, coverage document, brochure, product description, etc.)
-2. What type of document is it?
-3. Confidence level (0.0 to 1.0)
-4. Brief explanation
+                    "content": """You are a document classification expert specializing in BFSI (Banking, Financial Services, and Insurance) documents.
 
-ACCEPTABLE INSURANCE DOCUMENTS:
-- Insurance policies (life, health, motor, property, travel, etc.)
-- Insurance claim forms
-- Coverage documents and summaries
-- Insurance product brochures and marketing materials
-- Insurance benefit descriptions
-- Policy renewal notices
-- Insurance certificates
-- Any document explaining insurance products or coverage
+Your task: Determine if this document is related to insurance, finance, or financial services.
 
-REJECT ONLY IF:
-- Personal documents (passport, ID, bank statements)
-- Employment documents (reference letters, salary slips)
-- Medical documents (prescriptions, test reports)
-- Legal contracts unrelated to insurance
-- General business documents
+✅ ACCEPT ALL OF THESE:
+
+Insurance Documents:
+- Insurance policies (all types: life, health, motor, property, travel, cyber, professional liability, etc.)
+- Insurance claim forms and claim settlements
+- Coverage documents, policy summaries, certificates
+- Insurance product brochures, marketing materials, proposals
+- Benefit illustrations, policy schedules, endorsements
+- Premium notices, renewal documents, quotations
+- Insurance applications, underwriting documents
+- Reinsurance agreements, treaty documents
+- Loss reports, risk assessments, actuarial reports
+
+Financial Services Documents:
+- Investment products (mutual funds, bonds, annuities)
+- Pension plans, retirement plans, provident funds
+- Financial advisory documents, wealth management proposals
+- Banking products with insurance components (loan protection, credit life)
+- Mortgage insurance, title insurance documents
+- Surety bonds, guarantee documents
+- Employee benefits documents (group insurance, health benefits)
+
+Insurtech & Industry Documents:
+- Insurance technology product descriptions
+- Digital insurance platforms, apps, services
+- Insurance aggregator comparisons
+- Regulatory filings, compliance documents
+- Insurance industry reports, market analysis
+- Parametric insurance, microinsurance documents
+
+❌ REJECT ONLY:
+- Pure personal identity documents (passport, driver's license, national ID)
+- Employment-only documents (reference letters, CVs, job offers) WITHOUT insurance/benefits info
+- Pure medical records (prescriptions, lab reports, discharge summaries) WITHOUT insurance claims
+- General business contracts with NO insurance/financial component
+- Educational certificates, transcripts
+- Property deeds, lease agreements WITHOUT insurance component
+
+⚠️ IMPORTANT:
+- If document mentions insurance, premiums, coverage, claims, benefits, financial protection → ACCEPT
+- If document is from insurance company, broker, agent, insurtech → ACCEPT
+- If document relates to BFSI industry → ACCEPT
+- When in doubt → ACCEPT (low rejection threshold)
+- Confidence should be 0.7+ for clear insurance docs, 0.5-0.7 for finance-related
 
 Respond in JSON format:
 {
     "is_insurance": true/false,
     "confidence": 0.0-1.0,
-    "document_type": "insurance policy" or "reference letter" or "claim form" or "insurance brochure" etc,
-    "reason": "brief explanation why this is/isn't an insurance document"
+    "document_type": "insurance policy" or "financial services" or "claim form" etc,
+    "reason": "brief explanation"
 }"""
                 },
                 {
@@ -110,7 +136,7 @@ async def generate_rejection_message(document_type: str, reason: str) -> str:
                 },
                 {
                     "role": "user",
-                    "content": f"The user uploaded a '{document_type}'. Explain in 2-3 friendly sentences why Sacha Advisor can't analyze this document (we only handle insurance policies, claims, coverage documents, brochures, and insurance product materials). Suggest what they should upload instead."
+                    "content": f"The user uploaded a '{document_type}'. Explain in 2-3 friendly sentences why Sacha Advisor can't analyze this document (we only handle insurance, financial services, BFSI, and insurtech-related documents including policies, claims, investment products, pension plans, and financial protection documents). Suggest what they should upload instead."
                 }
             ],
             temperature=0.7,

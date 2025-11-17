@@ -56,8 +56,9 @@ async def upload_document(file: UploadFile = File(...)):
         try:
             classification = await classify_document_with_ai(extracted_text)
 
-            # If not an insurance document with high confidence, generate friendly rejection
-            if not classification["is_insurance"] or classification["confidence"] < 0.6:
+            # If not an insurance document with reasonable confidence, generate friendly rejection
+            # Lower threshold (0.4) to be more accepting of BFSI documents
+            if not classification["is_insurance"] or classification["confidence"] < 0.4:
                 rejection_message = await generate_rejection_message(
                     classification["document_type"],
                     classification["reason"]
