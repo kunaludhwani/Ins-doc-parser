@@ -4,13 +4,16 @@ services:
     name: sacha-advisor-backend
     env: python
     region: oregon
-    buildCommand: pip install --upgrade pip && pip install -r backend/requirements.txt
-    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r backend/requirements.txt
+    startCommand: |
+      cd backend
+      python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: OPENAI_API_KEY
         sync: false
-      - key: PYTHON_VERSION
-        value: 3.11.0
 
   # Frontend Service
   - type: web
