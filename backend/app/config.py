@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.1"
     DEBUG: bool = True
 
+    # Cache Settings
+    CACHE_ENABLED: bool = True
+    CACHE_TTL_SECONDS: int = 3600  # 1 hour cache for document analysis
+    CACHE_MAX_SIZE: int = 100  # Maximum cache entries
+
     class Config:
         env_file = ".env"
         case_sensitive = True

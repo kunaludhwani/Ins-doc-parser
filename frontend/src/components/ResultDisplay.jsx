@@ -1,33 +1,50 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion'
 import ResultSection from './ResultSection'
 
-export default function ResultDisplay({ result, language = 'en', isTranslating = false }) {
+export default React.memo(function ResultDisplay({ result, language = 'en', isTranslating = false }) {
     const [displayedText, setDisplayedText] = useState('')
     const [isTyping, setIsTyping] = useState(true)
+    const intervalRef = useRef(null)
+
+    // Memoize content selection to prevent unnecessary recalculations
+    const content = useMemo(() => {
+        if (!result?.summary) return '';
+        return language === 'hi' && result.translatedSummary
+            ? result.translatedSummary
+            : result.summary;
+    }, [result?.summary, result?.translatedSummary, language]);
 
     useEffect(() => {
-        if (!result?.summary) return
+        if (!content) return;
 
-        // Select content based on language
-        const content = language === 'hi' && result.translatedSummary
-            ? result.translatedSummary
-            : result.summary
+        let index = 0;
+        setIsTyping(true);
+        setDisplayedText('');
 
-        let index = 0
-        const text = content
-        const interval = setInterval(() => {
-            if (index < text.length) {
-                setDisplayedText(text.substring(0, index + 1))
-                index++
+        // Clear any existing interval
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+        }
+
+        intervalRef.current = setInterval(() => {
+            if (index < content.length) {
+                setDisplayedText(content.substring(0, index + 1));
+                index++;
             } else {
-                setIsTyping(false)
-                clearInterval(interval)
+                setIsTyping(false);
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
             }
-        }, 5)
+        }, 5);
 
-        return () => clearInterval(interval)
-    }, [result, language])
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+        };
+    }, [content])
 
     return (
         <motion.div
@@ -89,30 +106,6 @@ export default function ResultDisplay({ result, language = 'en', isTranslating =
                     delay={0.5}
                 />
             </div>
-
-            {/* Share/Export Section */}
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.8 }}
-                className="mt-8 p-6 bg-gray-100 rounded-lg text-center"
-            >
-                <p className="text-gray-700 font-semibold mb-4">
-                    Found this helpful? Share with others who need clarity on their policies.
-                </p>
-                <button
-                    onClick={() => {
-                        const text = `I just used Sacha Advisor to understand my insurance policy! Check it out: https://sachaa.dvisor`
-                        navigator.share ? navigator.share({
-                            title: 'Sacha Advisor',
-                            text: text
-                        }) : alert('Share functionality not available on your device')
-                    }}
-                    className="px-6 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-colors"
-                >
-                    Share Sacha Advisor
-                </button>
-            </motion.div>
         </motion.div>
     )
-}
+})

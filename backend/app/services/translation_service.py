@@ -1,9 +1,10 @@
 """
-Translation service for multilingual support
+Translation service for multilingual support - Optimized with caching
 Uses OpenAI to translate insurance explanations
 """
 from openai import AsyncOpenAI
 from app.config import settings
+from app.services.cache_service import cache_service, cache_key_from_text
 
 
 async def translate_to_hindi(english_text: str) -> str:
@@ -16,6 +17,13 @@ async def translate_to_hindi(english_text: str) -> str:
     Returns:
         Translated Hindi text
     """
+    # Check cache first - translations are expensive
+    cache_key = cache_key_from_text(english_text, "translation_hi")
+    cached_translation = cache_service.get(cache_key)
+
+    if cached_translation is not None:
+        return cached_translation
+
     client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
     try:
@@ -44,7 +52,12 @@ IMPORTANT RULES:
             max_tokens=2000
         )
 
-        return response.choices[0].message.content
+        translated_text = response.choices[0].message.content
+
+        # Cache the translation
+        cache_service.set(cache_key, translated_text)
+
+        return translated_text
 
     except Exception as e:
         raise Exception(f"Translation error: {str(e)}")

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     WhatsappShareButton,
@@ -15,12 +15,12 @@ import {
 import { generatePDF, downloadPDF } from '../utils/pdfGenerator'
 import { trackEvent } from '../utils/analytics'
 
-export default function DownloadSharePanel({ result, language, onLanguageChange }) {
+export default React.memo(function DownloadSharePanel({ result, language }) {
     const [isGenerating, setIsGenerating] = useState(false)
     const [shareUrl, setShareUrl] = useState('')
     const [showShareMenu, setShowShareMenu] = useState(false)
 
-    const handleDownloadPDF = async (selectedLanguage) => {
+    const handleDownloadPDF = useCallback(async (selectedLanguage) => {
         setIsGenerating(true)
         trackEvent('pdf_download_initiated', { language: selectedLanguage })
 
@@ -30,7 +30,8 @@ export default function DownloadSharePanel({ result, language, onLanguageChange 
                 ? result.translatedSummary
                 : result.summary
 
-            const { blob, filename } = generatePDF(
+            // generatePDF is now async, so we need to await it
+            const { blob, filename } = await generatePDF(
                 content,
                 result.filename || 'document',
                 selectedLanguage
@@ -52,16 +53,16 @@ export default function DownloadSharePanel({ result, language, onLanguageChange 
         } finally {
             setIsGenerating(false)
         }
-    }
+    }, [result])
 
-    const handleShare = () => {
+    const handleShare = useCallback(() => {
         setShowShareMenu(!showShareMenu)
         if (!shareUrl) {
             // Generate shareable URL (current page)
             setShareUrl(window.location.href)
         }
         trackEvent('share_button_clicked')
-    }
+    }, [showShareMenu, shareUrl])
 
     const shareTitle = `Check out this insurance document summary from Sacha Advisor`
     const shareText = `I just analyzed my insurance document with Sacha Advisor - AI-powered insurance explainer! 🎯`
@@ -70,45 +71,8 @@ export default function DownloadSharePanel({ result, language, onLanguageChange 
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-8 space-y-4"
+            className="mt-8"
         >
-            {/* Language Toggle */}
-            <div className="bg-white rounded-lg p-6 shadow-md border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    🌐 Language Selection
-                </h3>
-
-                <div className="flex gap-4 items-center">
-                    <button
-                        onClick={() => onLanguageChange('en')}
-                        className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all duration-200 ${language === 'en'
-                                ? 'bg-primary text-white shadow-lg scale-105'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                    >
-                        English
-                    </button>
-                    <button
-                        onClick={() => onLanguageChange('hi')}
-                        className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all duration-200 ${language === 'hi'
-                                ? 'bg-primary text-white shadow-lg scale-105'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                    >
-                        हिंदी (Hindi)
-                    </button>
-                </div>
-
-                {language === 'hi' && !result.translatedSummary && (
-                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-800 flex items-center gap-2">
-                            <span>ℹ️</span>
-                            Translating to Hindi... This may take a moment.
-                        </p>
-                    </div>
-                )}
-            </div>
-
             {/* Download and Share Actions */}
             <div className="bg-gradient-to-br from-primary-light to-white rounded-lg p-6 shadow-md border border-primary/20">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
@@ -123,8 +87,8 @@ export default function DownloadSharePanel({ result, language, onLanguageChange 
                         onClick={() => handleDownloadPDF(language)}
                         disabled={isGenerating || (language === 'hi' && !result.translatedSummary)}
                         className={`flex items-center justify-center gap-3 py-4 px-6 rounded-lg font-semibold transition-all duration-200 ${isGenerating || (language === 'hi' && !result.translatedSummary)
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-primary text-white hover:bg-primary-dark shadow-lg hover:shadow-xl'
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-primary text-white hover:bg-primary-dark shadow-lg hover:shadow-xl'
                             }`}
                     >
                         {isGenerating ? (
@@ -236,4 +200,4 @@ export default function DownloadSharePanel({ result, language, onLanguageChange 
             </div>
         </motion.div>
     )
-}
+})

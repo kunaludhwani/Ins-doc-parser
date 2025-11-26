@@ -19,52 +19,6 @@ function App() {
         trackPageView('/')
     }, [])
 
-    // Handle language change and translation
-    useEffect(() => {
-        if (language === 'hi' && result && !result.translatedSummary) {
-            translateToHindi()
-        }
-    }, [language, result])
-
-    const translateToHindi = async () => {
-        if (!result || result.translatedSummary) return
-
-        setIsTranslating(true)
-        trackEvent('translation_initiated', { language: 'hi' })
-
-        try {
-            const apiUrl = import.meta.env.VITE_API_URL || ''
-            const response = await fetch(`${apiUrl}/api/translate`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    text: result.summary,
-                    target_language: 'hi'
-                })
-            })
-
-            const data = await response.json()
-
-            if (response.ok) {
-                setResult({
-                    ...result,
-                    translatedSummary: data.translated_text
-                })
-                trackEvent('translation_success', { language: 'hi' })
-            } else {
-                console.error('Translation failed:', data.detail)
-                trackError('translation_error', data.detail)
-            }
-        } catch (err) {
-            console.error('Translation error:', err)
-            trackError('translation_error', err.message)
-        } finally {
-            setIsTranslating(false)
-        }
-    }
-
     const handleUpload = async (file, selectedLanguage) => {
         const startTime = Date.now()
         setUploadStartTime(startTime)
@@ -168,7 +122,6 @@ function App() {
                         <DownloadSharePanel
                             result={result}
                             language={language}
-                            onLanguageChange={setLanguage}
                         />
 
                         <div className="mt-8 text-center">

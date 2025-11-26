@@ -1,7 +1,8 @@
 """
-Health check router
+Health check router with cache statistics
 """
 from fastapi import APIRouter
+from app.services.cache_service import cache_service
 
 router = APIRouter()
 
@@ -10,5 +11,6 @@ router = APIRouter()
 async def health_check():
     return {
         "status": "healthy",
-        "service": "Sacha Advisor API"
+        "service": "Sacha Advisor API",
+        "cache": cache_service.get_stats()
     }

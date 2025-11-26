@@ -1,14 +1,21 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useCallback, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import LoadingSpinner from './LoadingSpinner'
+import { getVisitorCount, incrementVisitorCount, formatCount } from '../utils/visitorCounter'
 
-export default function FileUpload({ onUpload, isLoading, error }) {
+export default React.memo(function FileUpload({ onUpload, isLoading, error }) {
     const fileInputRef = useRef(null)
     const [dragActive, setDragActive] = useState(false)
     const [selectedFile, setSelectedFile] = useState(null)
     const [selectedLanguage, setSelectedLanguage] = useState('')
+    const [visitorCount, setVisitorCount] = useState(0)
 
-    const handleDrag = (e) => {
+    useEffect(() => {
+        // Initialize counter on component mount
+        setVisitorCount(getVisitorCount())
+    }, [])
+
+    const handleDrag = useCallback((e) => {
         e.preventDefault()
         e.stopPropagation()
         if (e.type === 'dragenter' || e.type === 'dragover') {
@@ -16,9 +23,9 @@ export default function FileUpload({ onUpload, isLoading, error }) {
         } else if (e.type === 'dragleave') {
             setDragActive(false)
         }
-    }
+    }, [])
 
-    const handleDrop = (e) => {
+    const handleDrop = useCallback((e) => {
         e.preventDefault()
         e.stopPropagation()
         setDragActive(false)
@@ -27,24 +34,27 @@ export default function FileUpload({ onUpload, isLoading, error }) {
             const file = e.dataTransfer.files[0]
             setSelectedFile(file)
         }
-    }
+    }, [])
 
-    const handleChange = (e) => {
+    const handleChange = useCallback((e) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0]
             setSelectedFile(file)
         }
-    }
+    }, [])
 
-    const handleUpload = () => {
+    const handleUpload = useCallback(() => {
         if (!selectedLanguage) {
             alert('Please select a language before uploading')
             return
         }
         if (selectedFile) {
             onUpload(selectedFile, selectedLanguage)
+            // Increment counter after successful upload initiation
+            const newCount = incrementVisitorCount()
+            setVisitorCount(newCount)
         }
-    }
+    }, [selectedLanguage, selectedFile, onUpload])
 
     return (
         <motion.div
@@ -86,45 +96,45 @@ export default function FileUpload({ onUpload, isLoading, error }) {
                     </motion.div>
 
                     <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                        Upload Insurance Document
+                        We will explain your document in the simplest possible way
                     </h2>
 
-                    <p className="text-gray-600 mb-4">
-                        Drag and drop your file here, or click to browse
-                    </p>
 
-                    <p className="text-sm text-gray-500 mb-6">
+
+                    {/* <p className="text-gray-600 mb-4">
+                        Drag and drop your file here, or click to browse
+                    </p> */}
+
+                    {/* <p className="text-sm text-gray-500 mb-6">
                         Supported formats: PDF, DOC, DOCX, JPG, PNG
                         <br />
                         Max file size: 50 MB | Max pages: 100 (PDF)
-                    </p>
+                    </p> */}
 
                     {/* Language Selection */}
                     {!selectedFile && (
                         <div className="mb-6">
                             <label className="block text-gray-700 font-semibold mb-3">
-                                Select Language for Explanation <span className="text-red-500">*</span>
+                                In which language would you prefer the output? <span className="text-red-500">*</span>
                             </label>
                             <div className="flex gap-4 justify-center">
                                 <button
                                     onClick={() => setSelectedLanguage('en')}
-                                    className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-                                        selectedLanguage === 'en'
-                                            ? 'bg-primary text-white shadow-lg scale-105'
-                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                    }`}
+                                    className={`px-6 py-3 rounded-lg font-semibold transition-all ${selectedLanguage === 'en'
+                                        ? 'bg-primary text-white shadow-lg scale-105'
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                        }`}
                                 >
-                                    🇬🇧 English
+                                    English
                                 </button>
                                 <button
                                     onClick={() => setSelectedLanguage('hi')}
-                                    className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-                                        selectedLanguage === 'hi'
-                                            ? 'bg-primary text-white shadow-lg scale-105'
-                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                    }`}
+                                    className={`px-6 py-3 rounded-lg font-semibold transition-all ${selectedLanguage === 'hi'
+                                        ? 'bg-primary text-white shadow-lg scale-105'
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                        }`}
                                 >
-                                    🇮🇳 हिंदी
+                                    हिंदी
                                 </button>
                             </div>
                         </div>
@@ -154,7 +164,7 @@ export default function FileUpload({ onUpload, isLoading, error }) {
                                 Selected: <span className="font-semibold">{selectedFile.name}</span>
                             </p>
                             <p className="text-gray-600 text-sm mb-3">
-                                Language: <span className="font-semibold">{selectedLanguage === 'en' ? '🇬🇧 English' : '🇮🇳 हिंदी'}</span>
+                                Language: <span className="font-semibold">{selectedLanguage === 'en' ? 'English' : 'हिंदी'}</span>
                             </p>
                             <button
                                 onClick={handleUpload}
@@ -177,7 +187,20 @@ export default function FileUpload({ onUpload, isLoading, error }) {
                     <p className="mt-1">{error}</p>
                 </motion.div>
             )}
-
+            {/* Trust Badge */}
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="mb-6 mt-3"
+            >
+                <div className="flex items-center justify-center gap-3">
+                    <span className="text-2xl">🏆</span>
+                    <p className="text-base text-gray-700">
+                        Trusted by over <span className="font-bold text-gray-900">{formatCount(visitorCount)}</span> agents and customers!
+                    </p>
+                </div>
+            </motion.div>
             {/* Information box */}
             <motion.div
                 initial={{ opacity: 0 }}
@@ -192,4 +215,4 @@ export default function FileUpload({ onUpload, isLoading, error }) {
             </motion.div>
         </motion.div>
     )
-}
+})
