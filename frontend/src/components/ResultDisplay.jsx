@@ -2,15 +2,20 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import ResultSection from './ResultSection'
 
-export default function ResultDisplay({ result }) {
+export default function ResultDisplay({ result, language = 'en', isTranslating = false }) {
     const [displayedText, setDisplayedText] = useState('')
     const [isTyping, setIsTyping] = useState(true)
 
     useEffect(() => {
         if (!result?.summary) return
 
+        // Select content based on language
+        const content = language === 'hi' && result.translatedSummary
+            ? result.translatedSummary
+            : result.summary
+
         let index = 0
-        const text = result.summary
+        const text = content
         const interval = setInterval(() => {
             if (index < text.length) {
                 setDisplayedText(text.substring(0, index + 1))
@@ -22,7 +27,7 @@ export default function ResultDisplay({ result }) {
         }, 5)
 
         return () => clearInterval(interval)
-    }, [result])
+    }, [result, language])
 
     return (
         <motion.div
@@ -47,6 +52,20 @@ export default function ResultDisplay({ result }) {
 
             {/* Main Result Container */}
             <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
+                {/* Translation Loading State */}
+                {isTranslating && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="mb-4 p-4 bg-blue-50 border border-blue-300 rounded-lg flex items-center gap-3"
+                    >
+                        <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                        <span className="text-blue-800 font-medium">
+                            {language === 'hi' ? 'हिंदी में अनुवाद कर रहे हैं...' : 'Translating to Hindi...'}
+                        </span>
+                    </motion.div>
+                )}
+
                 {/* Explanation Content */}
                 <div className="prose prose-sm max-w-none">
                     <motion.div
@@ -54,6 +73,7 @@ export default function ResultDisplay({ result }) {
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.3 }}
                         className="whitespace-pre-wrap text-gray-800 leading-relaxed font-serif"
+                        key={`${language}-${result.translatedSummary ? 'translated' : 'original'}`}
                     >
                         {displayedText}
                         {isTyping && <span className="animate-pulse">▍</span>}
@@ -61,28 +81,12 @@ export default function ResultDisplay({ result }) {
                 </div>
             </div>
 
-            {/* Sections */}
+            {/* Disclaimer Section Only */}
             <div className="space-y-6">
-                <ResultSection
-                    title="📋 Key Features"
-                    content="The explanation above breaks down your insurance policy into easy-to-understand sections including Summary, Key Benefits, Exclusions, Important Things to Know, and a Simple Analogy."
-                    delay={0.5}
-                />
-
-                <ResultSection
-                    title="💡 Tips for Reading Your Policy"
-                    content="• Keep a copy of your policy document safe
-• Review the exclusions carefully
-• Understand the deductible and coverage limits
-• Ask your insurance agent if anything is unclear
-• Check the renewal date and terms"
-                    delay={0.6}
-                />
-
                 <ResultSection
                     title="⚠️ Important Disclaimer"
                     content="This explanation is for informational purposes only. It's not a substitute for the official policy document. Always refer to your actual policy document and consult your insurance agent for specific questions about your coverage."
-                    delay={0.7}
+                    delay={0.5}
                 />
             </div>
 

@@ -5,13 +5,13 @@ Main application entry point
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import upload, health
+from app.routers import upload, health, translate
 from app.db.database import init_db
 
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="AI-powered insurance document explainer"
+    description="AI-powered insurance document explainer with multilingual support"
 )
 
 # CORS configuration
@@ -34,6 +34,7 @@ async def startup_event():
 # Include routers
 app.include_router(health.router, tags=["Health"])
 app.include_router(upload.router, prefix="/api", tags=["Upload"])
+app.include_router(translate.router, prefix="/api", tags=["Translation"])
 
 
 @app.get("/")

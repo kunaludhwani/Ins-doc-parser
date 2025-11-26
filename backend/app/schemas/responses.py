@@ -9,6 +9,13 @@ class UploadResponse(BaseModel):
     status: str
     is_insurance: bool
     summary: str
+    filename: Optional[str] = None
+
+
+class TranslationResponse(BaseModel):
+    status: str
+    translated_text: str
+    language: str
 
 
 class ErrorResponse(BaseModel):

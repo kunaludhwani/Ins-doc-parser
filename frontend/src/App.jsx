@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import FileUpload from './components/FileUpload'
 import ResultDisplay from './components/ResultDisplay'
+import DownloadSharePanel from './components/DownloadSharePanel'
 import Header from './components/Header'
 import { trackFileUpload, trackAnalysisComplete, trackError, trackUserAction, trackPageView } from './utils/analytics'
 import './App.css'
@@ -10,18 +11,67 @@ function App() {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState(null)
     const [uploadStartTime, setUploadStartTime] = useState(null)
+    const [language, setLanguage] = useState('en')
+    const [isTranslating, setIsTranslating] = useState(false)
 
     // Track initial page view
     useEffect(() => {
         trackPageView('/')
     }, [])
 
-    const handleUpload = async (file) => {
+    // Handle language change and translation
+    useEffect(() => {
+        if (language === 'hi' && result && !result.translatedSummary) {
+            translateToHindi()
+        }
+    }, [language, result])
+
+    const translateToHindi = async () => {
+        if (!result || result.translatedSummary) return
+
+        setIsTranslating(true)
+        trackEvent('translation_initiated', { language: 'hi' })
+
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || ''
+            const response = await fetch(`${apiUrl}/api/translate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    text: result.summary,
+                    target_language: 'hi'
+                })
+            })
+
+            const data = await response.json()
+
+            if (response.ok) {
+                setResult({
+                    ...result,
+                    translatedSummary: data.translated_text
+                })
+                trackEvent('translation_success', { language: 'hi' })
+            } else {
+                console.error('Translation failed:', data.detail)
+                trackError('translation_error', data.detail)
+            }
+        } catch (err) {
+            console.error('Translation error:', err)
+            trackError('translation_error', err.message)
+        } finally {
+            setIsTranslating(false)
+        }
+    }
+
+    const handleUpload = async (file, selectedLanguage) => {
         const startTime = Date.now()
         setUploadStartTime(startTime)
         setIsLoading(true)
         setError(null)
         setResult(null)
+        setLanguage(selectedLanguage)
 
         // Track file upload event
         const fileExtension = file.name.split('.').pop().toLowerCase()
@@ -41,6 +91,31 @@ function App() {
             const data = await response.json()
 
             if (response.ok && data.status === 'success') {
+                // If Hindi selected, translate immediately
+                if (selectedLanguage === 'hi') {
+                    setIsTranslating(true)
+                    try {
+                        const translateResponse = await fetch(`${apiUrl}/api/translate`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                text: data.summary,
+                                target_language: 'hi'
+                            })
+                        })
+                        const translateData = await translateResponse.json()
+                        if (translateResponse.ok) {
+                            data.translatedSummary = translateData.translated_text
+                        }
+                    } catch (translateErr) {
+                        console.error('Translation error:', translateErr)
+                    } finally {
+                        setIsTranslating(false)
+                    }
+                }
+
                 setResult(data)
 
                 // Track successful analysis
@@ -84,11 +159,22 @@ function App() {
                     <FileUpload onUpload={handleUpload} isLoading={isLoading} error={error} />
                 ) : (
                     <>
-                        <ResultDisplay result={result} />
+                        <ResultDisplay
+                            result={result}
+                            language={language}
+                            isTranslating={isTranslating}
+                        />
+
+                        <DownloadSharePanel
+                            result={result}
+                            language={language}
+                            onLanguageChange={setLanguage}
+                        />
+
                         <div className="mt-8 text-center">
                             <button
                                 onClick={handleReset}
-                                className="px-8 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-colors duration-200"
+                                className="px-8 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-colors duration-200 shadow-lg hover:shadow-xl"
                             >
                                 Analyze Another Document
                             </button>

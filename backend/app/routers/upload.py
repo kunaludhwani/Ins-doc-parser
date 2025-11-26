@@ -96,7 +96,8 @@ async def upload_document(file: UploadFile = File(...)):
         return UploadResponse(
             status="success",
             is_insurance=True,
-            summary=explanation
+            summary=explanation,
+            filename=file.filename
         )
 
     except HTTPException:

@@ -6,6 +6,7 @@ export default function FileUpload({ onUpload, isLoading, error }) {
     const fileInputRef = useRef(null)
     const [dragActive, setDragActive] = useState(false)
     const [selectedFile, setSelectedFile] = useState(null)
+    const [selectedLanguage, setSelectedLanguage] = useState('')
 
     const handleDrag = (e) => {
         e.preventDefault()
@@ -25,7 +26,6 @@ export default function FileUpload({ onUpload, isLoading, error }) {
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             const file = e.dataTransfer.files[0]
             setSelectedFile(file)
-            onUpload(file)
         }
     }
 
@@ -33,7 +33,16 @@ export default function FileUpload({ onUpload, isLoading, error }) {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0]
             setSelectedFile(file)
-            onUpload(file)
+        }
+    }
+
+    const handleUpload = () => {
+        if (!selectedLanguage) {
+            alert('Please select a language before uploading')
+            return
+        }
+        if (selectedFile) {
+            onUpload(selectedFile, selectedLanguage)
         }
     }
 
@@ -90,11 +99,42 @@ export default function FileUpload({ onUpload, isLoading, error }) {
                         Max file size: 50 MB | Max pages: 100 (PDF)
                     </p>
 
+                    {/* Language Selection */}
+                    {!selectedFile && (
+                        <div className="mb-6">
+                            <label className="block text-gray-700 font-semibold mb-3">
+                                Select Language for Explanation <span className="text-red-500">*</span>
+                            </label>
+                            <div className="flex gap-4 justify-center">
+                                <button
+                                    onClick={() => setSelectedLanguage('en')}
+                                    className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                                        selectedLanguage === 'en'
+                                            ? 'bg-primary text-white shadow-lg scale-105'
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                    🇬🇧 English
+                                </button>
+                                <button
+                                    onClick={() => setSelectedLanguage('hi')}
+                                    className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                                        selectedLanguage === 'hi'
+                                            ? 'bg-primary text-white shadow-lg scale-105'
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                    🇮🇳 हिंदी
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={isLoading}
+                        disabled={isLoading || !selectedLanguage}
                         className="
               px-8 py-3 bg-primary text-white rounded-lg font-semibold
               hover:bg-primary-dark transition-colors duration-200
@@ -105,13 +145,24 @@ export default function FileUpload({ onUpload, isLoading, error }) {
                     </motion.button>
 
                     {selectedFile && !isLoading && (
-                        <motion.p
+                        <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            className="text-gray-700 mt-4 text-sm"
+                            className="mt-4"
                         >
-                            Selected: <span className="font-semibold">{selectedFile.name}</span>
-                        </motion.p>
+                            <p className="text-gray-700 text-sm mb-3">
+                                Selected: <span className="font-semibold">{selectedFile.name}</span>
+                            </p>
+                            <p className="text-gray-600 text-sm mb-3">
+                                Language: <span className="font-semibold">{selectedLanguage === 'en' ? '🇬🇧 English' : '🇮🇳 हिंदी'}</span>
+                            </p>
+                            <button
+                                onClick={handleUpload}
+                                className="px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+                            >
+                                Upload & Analyze
+                            </button>
+                        </motion.div>
                     )}
                 </div>
             )}
