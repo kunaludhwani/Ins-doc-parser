@@ -18,6 +18,11 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_PATH: str = "sacha_advisor.db"
+    # Supabase PostgreSQL connection
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+    SUPABASE_SERVICE_KEY: str = os.getenv(
+        "SUPABASE_SERVICE_KEY", "")  # service_role key
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")  # Project URL
 
     # CORS Settings
     CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:3000"]

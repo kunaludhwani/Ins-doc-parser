@@ -2,11 +2,13 @@
 Sacha Advisor - FastAPI Backend
 Main application entry point
 """
+from app.routers import acknowledge
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.routers import upload, health, translate
 from app.db.database import init_db
+from app.db.supabase import init_db as init_supabase_db, close_pool
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -24,17 +26,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize database
+# Initialize databases
 
 
 @app.on_event("startup")
 async def startup_event():
-    init_db()
+    """Initialize SQLite (legacy) and Supabase (production) databases"""
+    init_db()  # Legacy SQLite for backward compatibility
+
+    # Try to initialize Supabase, but don't crash if it fails
+    try:
+        await init_supabase_db()  # Production Supabase PostgreSQL
+    except Exception as e:
+        print(f"⚠️  Supabase connection unavailable: {str(e)}")
+        print("   Continuing with SQLite only. Analytics will not be logged to Supabase.")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Gracefully close Supabase connection pool"""
+    await close_pool()
 
 # Include routers
 app.include_router(health.router, tags=["Health"])
 app.include_router(upload.router, prefix="/api", tags=["Upload"])
 app.include_router(translate.router, prefix="/api", tags=["Translation"])
+
+# Import and include acknowledge router
+app.include_router(acknowledge.router, prefix="/api", tags=["Acknowledgment"])
 
 
 @app.get("/")

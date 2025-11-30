@@ -19,7 +19,7 @@ function App() {
         trackPageView('/')
     }, [])
 
-    const handleUpload = async (file, selectedLanguage) => {
+    const handleUpload = async (file, selectedLanguage, sessionId) => {
         const startTime = Date.now()
         setUploadStartTime(startTime)
         setIsLoading(true)
@@ -39,6 +39,10 @@ function App() {
         try {
             const response = await fetch(`${apiUrl}/api/upload`, {
                 method: 'POST',
+                headers: {
+                    'X-Session-ID': sessionId,
+                    'X-Language': selectedLanguage === 'hi' ? 'hindi' : 'english'
+                },
                 body: formData,
             })
 
@@ -75,6 +79,24 @@ function App() {
                 // Track successful analysis
                 const processingTime = Date.now() - startTime
                 trackAnalysisComplete(data.is_insurance, processingTime)
+
+                // Send acknowledgment that user saw the result
+                try {
+                    await fetch(`${apiUrl}/api/acknowledge`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Session-ID': sessionId
+                        },
+                        body: JSON.stringify({
+                            session_id: sessionId,
+                            result_viewed: true
+                        })
+                    })
+                } catch (ackErr) {
+                    console.error('Acknowledgment error:', ackErr)
+                    // Don't show error to user - this is background logging
+                }
             } else {
                 // Handle error responses from backend
                 const errorMessage = data.detail || data.message || 'An error occurred while processing your file.'

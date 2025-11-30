@@ -2,34 +2,137 @@
 File upload router - Optimized with caching and parallel processing
 Handles insurance document uploads and processing
 """
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Header, Request
+from starlette.concurrency import run_in_threadpool
 from app.services.file_validation import validate_file
 from app.services.insurance_check import classify_document_with_ai, generate_rejection_message
 from app.services.extractor import extract_text
 from app.services.openai_client import get_insurance_explanation
 from app.services.logger_service import log_request
+from app.services.logger_tier1 import log_tier1, update_tier1_status
+from app.services.logger_tier2 import log_tier2, update_tier2_event
+from app.services.logger_tier3 import log_tier3
 from app.services.cache_service import cache_service, cache_key_from_text
 from app.schemas.responses import UploadResponse
 import os
 import asyncio
+import hashlib
+import time
+from typing import Optional
+from user_agents import parse
 
 router = APIRouter()
 
 
+def generate_user_id(ip: str, user_agent: str) -> str:
+    """Generate anonymous user ID from IP + User-Agent"""
+    return hashlib.sha256(f"{ip}:{user_agent}".encode()).hexdigest()[:16]
+
+
 @router.post("/upload", response_model=UploadResponse)
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(
+    request: Request,
+    file: UploadFile = File(...),
+    session_id: Optional[str] = Header(None, alias="X-Session-ID"),
+    language: Optional[str] = Header("english", alias="X-Language"),
+    user_agent: Optional[str] = Header(None, alias="User-Agent")
+):
     """
     Upload and analyze insurance document with AI-based validation
+    Enhanced with comprehensive analytics tracking across 3 tiers
     """
+    # Performance tracking
+    start_time = time.time()
+    time_extraction = 0
+    time_classification = 0
+    time_explanation = 0
+
+    # User tracking
+    client_ip = request.client.host if request.client else "unknown"
+    user_id = generate_user_id(client_ip, user_agent or "unknown")
+
+    # Parse user agent
+    ua = parse(user_agent or "")
+    device_type = "mobile" if ua.is_mobile else "tablet" if ua.is_tablet else "desktop"
+    browser = f"{ua.browser.family} {ua.browser.version_string}"
+
+    # Track file info early for failure logging
+    file_content = None
+    file_extension = None
+    file_size_bytes = 0
+
+    # Check if client is still connected
+    async def check_disconnect():
+        """Check periodically if client disconnected"""
+        try:
+            while True:
+                if await request.is_disconnected():
+                    # User closed window/tab during loading - abandoned by user
+                    await update_tier1_status(
+                        session_id=session_id or "no-session",
+                        request_status="abandoned_by_user",
+                        processing_time_total=int(
+                            (time.time() - start_time) * 1000)
+                    )
+                    # Update tier2 with abandoned step (record already created)
+                    await update_tier2_event(
+                        session_id=session_id or "no-session",
+                        event_type="abandoned_at_step",
+                        value="client_disconnect"
+                    )
+                    break
+                await asyncio.sleep(1)  # Check every second
+        except:
+            pass
+
     try:
         # Read file content
         file_content = await file.read()
         file_extension = os.path.splitext(file.filename)[1].lower()
+        file_size_bytes = len(file_content)
+
+        # LOG AT START: Track upload attempt immediately
+        await log_tier1(
+            user_id=user_id,
+            session_id=session_id or "no-session",
+            user_language_preference=language,
+            file_type=file_extension,
+            extraction_method="ocr" if file_extension in [
+                ".jpg", ".jpeg", ".png"] else "text",
+            request_status="processing"
+        )
+        await log_tier2(
+            session_id=session_id or "no-session",
+            user_id=user_id,
+            file_size_bytes=file_size_bytes
+        )
+        await log_tier3(
+            session_id=session_id or "no-session",
+            user_id=user_id,
+            device_type=device_type,
+            browser=browser
+        )
+
+        # Start background task to monitor client disconnect
+        disconnect_task = asyncio.create_task(check_disconnect())
 
         # Step 1: Validate file (type, size, page count)
         try:
             validation_result = await validate_file(file_content, file_extension, file.filename)
             if not validation_result["valid"]:
+                # Validation error: wrong file type, too many pages, file too large, etc.
+                await update_tier1_status(
+                    session_id=session_id or "no-session",
+                    request_status="invalid_file",
+                    processing_time_total=int(
+                        (time.time() - start_time) * 1000)
+                )
+                await update_tier2_event(
+                    session_id=session_id or "no-session",
+                    event_type="abandoned_at_step",
+                    value="validation"
+                )
+
                 raise HTTPException(
                     status_code=400,
                     detail=validation_result["error"]
@@ -42,8 +145,24 @@ async def upload_document(file: UploadFile = File(...)):
 
         # Step 2: Extract text from document
         try:
+            extraction_start = time.time()
             extracted_text = await extract_text(file_content, file_extension)
+            time_extraction = int((time.time() - extraction_start) * 1000)
+
             if not extracted_text or len(extracted_text.strip()) < 50:
+                # Document unreadable: can't extract text (poor scan, corrupted file, etc.)
+                await update_tier1_status(
+                    session_id=session_id or "no-session",
+                    request_status="unreadable_document",
+                    processing_time_total=int(
+                        (time.time() - start_time) * 1000)
+                )
+                await update_tier2_event(
+                    session_id=session_id or "no-session",
+                    event_type="abandoned_at_step",
+                    value="extraction"
+                )
+
                 raise HTTPException(
                     status_code=400,
                     detail="Could not extract enough text from the document. Please ensure the file is readable."
@@ -51,11 +170,26 @@ async def upload_document(file: UploadFile = File(...)):
         except HTTPException:
             raise
         except Exception as e:
+            # Document unreadable: extraction failed
+            await update_tier1_status(
+                session_id=session_id or "no-session",
+                request_status="unreadable_document",
+                processing_time_total=int((time.time() - start_time) * 1000)
+            )
+            await update_tier2_event(
+                session_id=session_id or "no-session",
+                event_type="abandoned_at_step",
+                value="extraction"
+            )
             raise HTTPException(
                 status_code=500, detail=f"Text extraction error: {str(e)}")
 
         # Step 3 & 4: Parallel execution with caching
         # Run classification and explanation in parallel for 40% speed boost
+        cache_hit = False
+        classification = None
+        explanation = None
+
         try:
             # Check cache first
             cache_key_classification = cache_key_from_text(
@@ -66,31 +200,36 @@ async def upload_document(file: UploadFile = File(...)):
             cached_classification = cache_service.get(cache_key_classification)
             cached_explanation = cache_service.get(cache_key_explanation)
 
+            cache_hit = cached_classification is not None and cached_explanation is not None
+
             # Run both operations in parallel if not cached
             tasks = []
+            classification_start = time.time()
+
             if cached_classification is None:
                 tasks.append(classify_document_with_ai(extracted_text))
             else:
-                tasks.append(asyncio.create_task(
-                    asyncio.sleep(0)))  # Dummy task
+                tasks.append(asyncio.create_task(asyncio.sleep(0)))
 
             if cached_explanation is None:
                 tasks.append(get_insurance_explanation(extracted_text))
             else:
-                tasks.append(asyncio.create_task(
-                    asyncio.sleep(0)))  # Dummy task
+                tasks.append(asyncio.create_task(asyncio.sleep(0)))
 
             # Execute in parallel
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             # Process classification result
             if cached_classification is None:
+                time_classification = int(
+                    (time.time() - classification_start) * 1000)
                 if isinstance(results[0], Exception):
                     raise HTTPException(
                         status_code=500, detail=f"Document classification error: {str(results[0])}")
                 classification = results[0]
                 cache_service.set(cache_key_classification, classification)
             else:
+                time_classification = 0
                 classification = cached_classification
 
             # Check if document is insurance-related
@@ -99,38 +238,100 @@ async def upload_document(file: UploadFile = File(...)):
                     classification["document_type"],
                     classification["reason"]
                 )
+
+                # Rejected by SachAdvisor: not an insurance document
+                await update_tier1_status(
+                    session_id=session_id or "no-session",
+                    request_status="rejected_by_sachadvisor",
+                    processing_time_total=int(
+                        (time.time() - start_time) * 1000)
+                )
+                await update_tier2_event(
+                    session_id=session_id or "no-session",
+                    event_type="abandoned_at_step",
+                    value="classification"
+                )
+
                 raise HTTPException(
                     status_code=400,
                     detail=rejection_message
                 )
 
             # Process explanation result
+            explanation_start = time.time()
             if cached_explanation is None:
+                time_explanation = int(
+                    (time.time() - explanation_start) * 1000)
                 if isinstance(results[1], Exception):
                     raise HTTPException(
                         status_code=500, detail=f"AI explanation error: {str(results[1])}")
                 explanation = results[1]
                 cache_service.set(cache_key_explanation, explanation)
             else:
+                time_explanation = 0
                 explanation = cached_explanation
 
         except HTTPException:
             raise
         except Exception as e:
+            # System error: unexpected backend failure
+            await update_tier1_status(
+                session_id=session_id or "no-session",
+                request_status="system_error",
+                processing_time_total=int((time.time() - start_time) * 1000)
+            )
+            await update_tier2_event(
+                session_id=session_id or "no-session",
+                event_type="abandoned_at_step",
+                value="processing"
+            )
             raise HTTPException(
                 status_code=500, detail=f"Processing error: {str(e)}")
 
-        # Step 5: Log the request
+        # Calculate total processing time and API cost estimate
+        processing_time_total = int((time.time() - start_time) * 1000)
+
+        # Estimate API cost (GPT-4o-mini: ~$0.15/1M input tokens, ~$0.60/1M output tokens)
+        # Average request: ~2000 input + ~500 output tokens ≈ $0.0006
+        api_cost = 0.0006 if not cache_hit else 0.0
+
+        # Cancel disconnect monitoring (request completed successfully)
+        disconnect_task.cancel()
+
+        # Step 5: Update to completed_not_viewed status (will be updated to 'completed' when user acknowledges)
         try:
+            # Update tier1 - backend processing complete but waiting for user acknowledgment
+            await update_tier1_status(
+                session_id=session_id or "no-session",
+                request_status="completed_not_viewed",
+                processing_time_total=processing_time_total,
+                explanation=explanation
+            )            # Tier 3: Advanced analytics
+            word_count = len(explanation.split()) if explanation else 0
+            await log_tier3(
+                session_id=session_id or "no-session",
+                user_id=user_id,
+                key_entities_found=None,  # Could add NER
+                summary_word_count=word_count,
+                complexity_score=None,  # Could add readability scoring
+                language_detected="en",
+                contains_personal_info=None,
+                referrer_source=None,  # Could track from headers
+                device_type=device_type,
+                browser=browser,
+                came_from_ad_campaign=False
+            )
+
+            # Legacy SQLite logging
             await log_request(
                 file_type=file_extension,
                 page_count=validation_result.get("page_count", 1),
                 text_length=len(extracted_text),
-                explanation=explanation
+                explanation=explanation or ""
             )
         except Exception as e:
             # Log errors shouldn't crash the response
-            print(f"Logging error: {str(e)}")
+            print(f"Analytics logging error: {str(e)}")
 
         # Return success response
         return UploadResponse(
@@ -140,9 +341,27 @@ async def upload_document(file: UploadFile = File(...)):
             filename=file.filename
         )
 
-    except HTTPException:
+    except HTTPException as http_err:
+        # HTTPExceptions are already logged in their respective try blocks
         raise
     except Exception as e:
+        # Catch unexpected errors and mark as abandoned
+        try:
+            await update_tier1_status(
+                session_id=session_id or "no-session",
+                request_status="abandoned",
+                processing_time_total=int((time.time() - start_time) * 1000)
+            )
+            if session_id:
+                await log_tier2(
+                    session_id=session_id,
+                    user_id=user_id,
+                    abandoned_at_step="unexpected_error",
+                    file_size_bytes=file_size_bytes
+                )
+        except:
+            pass  # Don't let logging errors crash error handling
+
         raise HTTPException(
             status_code=500,
             detail=f"Unexpected error: {str(e)}"

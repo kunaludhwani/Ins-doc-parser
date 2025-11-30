@@ -2,6 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import LoadingSpinner from './LoadingSpinner'
 import { getVisitorCount, incrementVisitorCount, formatCount } from '../utils/visitorCounter'
+import { getSessionId, getLanguagePreference, setLanguagePreference } from '../utils/sessionManager'
 
 export default React.memo(function FileUpload({ onUpload, isLoading, error }) {
     const fileInputRef = useRef(null)
@@ -9,10 +10,15 @@ export default React.memo(function FileUpload({ onUpload, isLoading, error }) {
     const [selectedFile, setSelectedFile] = useState(null)
     const [selectedLanguage, setSelectedLanguage] = useState('')
     const [visitorCount, setVisitorCount] = useState(0)
+    const [sessionId] = useState(() => getSessionId())
 
     useEffect(() => {
-        // Initialize counter on component mount
+        // Initialize counter and language preference
         setVisitorCount(getVisitorCount())
+        const savedLanguage = getLanguagePreference()
+        if (savedLanguage) {
+            setSelectedLanguage(savedLanguage)
+        }
     }, [])
 
     const handleDrag = useCallback((e) => {
@@ -49,12 +55,17 @@ export default React.memo(function FileUpload({ onUpload, isLoading, error }) {
             return
         }
         if (selectedFile) {
-            onUpload(selectedFile, selectedLanguage)
+            // Save language preference
+            setLanguagePreference(selectedLanguage)
+
+            // Pass session ID and language to upload function
+            onUpload(selectedFile, selectedLanguage, sessionId)
+
             // Increment counter after successful upload initiation
             const newCount = incrementVisitorCount()
             setVisitorCount(newCount)
         }
-    }, [selectedLanguage, selectedFile, onUpload])
+    }, [selectedLanguage, selectedFile, sessionId, onUpload])
 
     return (
         <motion.div
