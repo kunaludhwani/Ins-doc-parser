@@ -63,3 +63,5 @@ async def log_tier3(
 
     except Exception as e:
         print(f"❌ Tier 3 logging error: {str(e)}")
+        import traceback
+        traceback.print_exc()

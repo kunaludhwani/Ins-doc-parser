@@ -34,12 +34,31 @@ async def startup_event():
     """Initialize SQLite (legacy) and Supabase (production) databases"""
     init_db()  # Legacy SQLite for backward compatibility
 
-    # Try to initialize Supabase, but don't crash if it fails
+    # Check if Supabase environment variables are set
+    if not settings.DATABASE_URL:
+        print("⚠️  WARNING: DATABASE_URL not set! Supabase logging will NOT work.")
+        print("   Please set DATABASE_URL environment variable in Render.")
+        return
+
+    if not settings.SUPABASE_SERVICE_KEY:
+        print("⚠️  WARNING: SUPABASE_SERVICE_KEY not set! Supabase logging will NOT work.")
+        return
+
+    if not settings.SUPABASE_URL:
+        print("⚠️  WARNING: SUPABASE_URL not set! Supabase logging will NOT work.")
+        return
+
+    # Try to initialize Supabase
     try:
+        print("🔄 Connecting to Supabase...")
+        print(f"   Database: {settings.DATABASE_URL[:30]}...")
         await init_supabase_db()  # Production Supabase PostgreSQL
+        print("✅ Supabase connection successful!")
     except Exception as e:
-        print(f"⚠️  Supabase connection unavailable: {str(e)}")
-        print("   Continuing with SQLite only. Analytics will not be logged to Supabase.")
+        print(f"❌ SUPABASE CONNECTION FAILED: {str(e)}")
+        print("   Analytics will NOT be logged to Supabase.")
+        import traceback
+        traceback.print_exc()
 
 
 @app.on_event("shutdown")

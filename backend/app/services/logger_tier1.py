@@ -68,6 +68,8 @@ async def log_tier1(
     except Exception as e:
         # Don't crash the app if logging fails
         print(f"❌ Tier 1 logging error: {str(e)}")
+        import traceback
+        traceback.print_exc()
 
 
 async def update_tier1_status(

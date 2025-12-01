@@ -54,6 +54,8 @@ async def log_tier2(
 
     except Exception as e:
         print(f"❌ Tier 2 logging error: {str(e)}")
+        import traceback
+        traceback.print_exc()
 
 
 async def update_tier2_event(
@@ -81,3 +83,5 @@ async def update_tier2_event(
 
     except Exception as e:
         print(f"❌ Tier 2 event update error: {str(e)}")
+        import traceback
+        traceback.print_exc()
