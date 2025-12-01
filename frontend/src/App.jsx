@@ -160,7 +160,7 @@ function App() {
 
             <footer className="bg-gray-900 text-white text-center py-6 mt-16">
                 <p className="text-sm">
-                    Sacha Advisor v1.1 | Simplifying Insurance Documents with AI
+                    Sacha Advisor v1.1 | Simplifying Financial Documents with AI
                 </p>
             </footer>
         </div>

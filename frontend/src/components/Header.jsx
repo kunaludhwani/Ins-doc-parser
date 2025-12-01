@@ -14,10 +14,10 @@ export default function Header() {
                         📘 Sacha Advisor
                     </h1>
                     <p className="text-gray-600 mt-2 text-lg">
-                        AI-Powered Insurance Document Explainer
+                        AI-Powered Financial Document Explainer
                     </p>
                     <p className="text-gray-500 mt-1 text-sm">
-                        Upload your insurance policy and get a clear, human-friendly explanation
+                        Upload your financial documents and get a clear, human-friendly explanation
                     </p>
                 </motion.div>
             </div>
