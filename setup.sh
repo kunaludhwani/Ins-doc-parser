@@ -1,4 +1,4 @@
-#!/bin/bash
+P#!/bin/bash
 
 echo "🚀 Sacha Advisor - Quick Start Script"
 echo "======================================"
