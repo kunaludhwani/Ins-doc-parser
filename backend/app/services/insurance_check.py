@@ -1,6 +1,7 @@
 """
-Insurance document detection service
+Financial document detection service
 Uses OpenAI for semantic document classification
+Accepts insurance and all financial services documents
 """
 from openai import AsyncOpenAI
 from app.config import settings
@@ -33,60 +34,75 @@ async def classify_document_with_ai(text: str) -> dict:
             messages=[
                 {
                     "role": "system",
-                    "content": """You are a document classification expert specializing in BFSI (Banking, Financial Services, and Insurance) documents.
+                    "content": """You are a document classification expert specializing in ALL financial documents including insurance, banking, investments, loans, and wealth management.
 
-Your task: Determine if this document is related to insurance, finance, or financial services.
+Your task: Determine if this document is ANY type of financial document.
 
-✅ ACCEPT ALL OF THESE:
+✅ ACCEPT ALL OF THESE FINANCIAL DOCUMENTS:
 
 Insurance Documents:
-- Insurance policies (all types: life, health, motor, property, travel, cyber, professional liability, etc.)
-- Insurance claim forms and claim settlements
-- Coverage documents, policy summaries, certificates
-- Insurance product brochures, marketing materials, proposals
-- Benefit illustrations, policy schedules, endorsements
-- Premium notices, renewal documents, quotations
-- Insurance applications, underwriting documents
-- Reinsurance agreements, treaty documents
-- Loss reports, risk assessments, actuarial reports
+- All insurance policies (life, health, motor, property, travel, cyber, liability, etc.)
+- Insurance claims, settlements, coverage documents
+- Premium notices, policy schedules, endorsements, proposals
 
-Financial Services Documents:
-- Investment products (mutual funds, bonds, annuities)
-- Pension plans, retirement plans, provident funds
-- Financial advisory documents, wealth management proposals
-- Banking products with insurance components (loan protection, credit life)
-- Mortgage insurance, title insurance documents
-- Surety bonds, guarantee documents
-- Employee benefits documents (group insurance, health benefits)
+Banking Documents:
+- Loan agreements (personal, home, auto, business, education)
+- Credit card statements, agreements, terms
+- Fixed deposit receipts, certificates
+- Bank statements, passbooks, account opening forms
+- Overdraft facilities, credit lines
 
-Insurtech & Industry Documents:
-- Insurance technology product descriptions
-- Digital insurance platforms, apps, services
-- Insurance aggregator comparisons
-- Regulatory filings, compliance documents
-- Insurance industry reports, market analysis
-- Parametric insurance, microinsurance documents
+Investment Documents:
+- Mutual fund statements, SIPs, NAV reports
+- Demat account statements, trading accounts
+- Stock certificates, share allotment letters
+- Bond documents, debentures, securities
+- Investment advisory reports, portfolio statements
 
-❌ REJECT ONLY:
-- Pure personal identity documents (passport, driver's license, national ID)
-- Employment-only documents (reference letters, CVs, job offers) WITHOUT insurance/benefits info
-- Pure medical records (prescriptions, lab reports, discharge summaries) WITHOUT insurance claims
-- General business contracts with NO insurance/financial component
-- Educational certificates, transcripts
-- Property deeds, lease agreements WITHOUT insurance component
+Retirement & Pension:
+- Provident fund statements (EPF, PPF, VPF)
+- National Pension System (NPS) documents
+- Pension plans, annuity documents
+- Gratuity, superannuation documents
 
-⚠️ IMPORTANT:
-- If document mentions insurance, premiums, coverage, claims, benefits, financial protection → ACCEPT
-- If document is from insurance company, broker, agent, insurtech → ACCEPT
-- If document relates to BFSI industry → ACCEPT
-- When in doubt → ACCEPT (low rejection threshold)
-- Confidence should be 0.7+ for clear insurance docs, 0.5-0.7 for finance-related
+Wealth Management:
+- Portfolio management services (PMS) documents
+- Financial planning reports, wealth advisory
+- Estate planning, trust documents
+- Tax planning documents, capital gains reports
+
+Alternative Investments:
+- ULIP documents
+- REIT, InvIT documents
+- Gold bonds, sovereign bonds
+- Commodities trading documents
+
+EMI & Payment Documents:
+- EMI schedules, payment plans
+- Buy now pay later (BNPL) agreements
+- Payment gateway documents
+
+❌ REJECT ONLY THESE (Non-Financial):
+- Pure personal identity documents (passport, Aadhaar, driver's license) WITHOUT financial context
+- Employment documents (CVs, offer letters) WITHOUT salary/benefits info
+- Pure medical records WITHOUT insurance/claims
+- Educational certificates
+- General business contracts WITHOUT financial terms
+- Travel tickets, hotel bookings WITHOUT financial protection
+- Utility bills (unless related to loan/payment plan)
+
+⚠️ CRITICAL RULES:
+- If document has ANY financial terms (amount, interest, premium, NAV, returns, EMI, principal) → ACCEPT
+- If from ANY financial institution (bank, NBFC, insurer, broker, advisor, fintech) → ACCEPT
+- If mentions money, investments, loans, coverage, benefits → ACCEPT
+- When in doubt → ACCEPT (very low rejection threshold)
+- Confidence: 0.8+ for clear financial docs, 0.6+ for borderline financial docs
 
 Respond in JSON format:
 {
     "is_insurance": true/false,
     "confidence": 0.0-1.0,
-    "document_type": "insurance policy" or "financial services" or "claim form" etc,
+    "document_type": "loan agreement" or "mutual fund" or "insurance policy" or "FD certificate" etc,
     "reason": "brief explanation"
 }"""
                 },
@@ -104,11 +120,17 @@ Respond in JSON format:
 
     except Exception as e:
         print(f"AI classification error: {str(e)}")
-        # Fallback to basic keyword check
+        # Fallback to basic keyword check for financial terms
+        financial_keywords = ["insurance", "policy", "loan", "emi", "mutual fund", "investment",
+                              "bank", "credit", "debit", "premium", "interest", "principal",
+                              "nav", "portfolio", "pension", "provident", "deposit", "fd", "rd"]
+        is_financial = any(keyword in text.lower()
+                           for keyword in financial_keywords)
+
         return {
-            "is_insurance": "insurance" in text.lower() or "policy" in text.lower(),
+            "is_insurance": is_financial,
             "confidence": 0.5,
-            "document_type": "unknown",
+            "document_type": "financial_document",
             "reason": "AI classification unavailable, using basic keyword matching"
         }
 
@@ -132,11 +154,11 @@ async def generate_rejection_message(document_type: str, reason: str) -> str:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a helpful assistant explaining why Sacha Advisor can only analyze insurance documents. Be friendly and concise."
+                    "content": "You are a helpful assistant explaining why Sacha Advisor can only analyze financial documents. Be friendly and concise."
                 },
                 {
                     "role": "user",
-                    "content": f"The user uploaded a '{document_type}'. Explain in 2-3 friendly sentences why Sacha Advisor can't analyze this document (we only handle insurance, financial services, BFSI, and insurtech-related documents including policies, claims, investment products, pension plans, and financial protection documents). Suggest what they should upload instead."
+                    "content": f"The user uploaded a '{document_type}'. Explain in 2-3 friendly sentences why Sacha Advisor can't analyze this document (we only handle ALL financial documents including insurance policies, loan agreements, investment documents, mutual funds, fixed deposits, EMI schedules, pension plans, bank statements, credit cards, and any banking/finance/investment related documents). Suggest what type of financial document they should upload instead."
                 }
             ],
             temperature=0.7,
@@ -147,4 +169,4 @@ async def generate_rejection_message(document_type: str, reason: str) -> str:
 
     except Exception as e:
         print(f"Rejection message generation error: {str(e)}")
-        return f"This appears to be a {document_type}, not an insurance document. Sacha Advisor can only analyze insurance policies, claims, and coverage documents. Please upload a valid insurance document to get started!"
+        return f"This appears to be a {document_type}, not a financial document. Sacha Advisor can analyze ALL financial documents including insurance, loans, investments, mutual funds, fixed deposits, EMI schedules, pension plans, bank statements, and more. Please upload any financial document to get started!"

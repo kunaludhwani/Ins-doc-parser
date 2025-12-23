@@ -13,6 +13,7 @@ _pool: Optional[asyncpg.Pool] = None
 async def get_pool() -> asyncpg.Pool:
     """
     Get or create the global connection pool
+    Optimized for high concurrency with larger pool and faster timeout
 
     Returns:
         asyncpg.Pool: Connection pool instance
@@ -22,13 +23,16 @@ async def get_pool() -> asyncpg.Pool:
     if _pool is None:
         _pool = await asyncpg.create_pool(
             dsn=settings.DATABASE_URL,
-            min_size=2,
-            max_size=10,
-            command_timeout=60,
+            min_size=5,   # Increased from 2 for better concurrency
+            max_size=30,  # Increased from 10 for high traffic
+            command_timeout=20,  # Reduced from 60 for fail-fast behavior
+            max_inactive_connection_lifetime=300,
             server_settings={
-                'application_name': 'sacha_advisor_backend'
+                'application_name': 'sacha_advisor_backend',
+                'jit': 'off'  # Disable JIT compilation for faster simple queries
             }
         )
+        print(f"✅ Supabase pool created: 5-30 connections (optimized)")
 
     return _pool
 

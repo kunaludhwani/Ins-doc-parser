@@ -1,8 +1,8 @@
 # 📘 Sacha Advisor
 
-**AI-Powered Insurance Document Explainer**
+**AI-Powered Financial Document Explainer**
 
-Sacha Advisor transforms complex insurance documents into clear, human-friendly explanations using OpenAI's GPT-4o-mini model.
+Sacha Advisor transforms complex financial documents into clear, human-friendly explanations using OpenAI's GPT-4o-mini model. Supports ALL financial documents including insurance, loans, investments, mutual funds, fixed deposits, EMI schedules, pension plans, and more!
 
 ![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -14,7 +14,8 @@ Sacha Advisor transforms complex insurance documents into clear, human-friendly 
 - 🎨 **Beautiful UI** - Red-themed interface with smooth animations
 - ⚡ **Fast Processing** - Average response time under 6 seconds
 - 🔐 **Privacy First** - No file storage, explanations only
-- 🛡️ **Smart Validation** - Detects non-insurance documents automatically
+- 🛡️ **Smart Validation** - Detects non-financial documents automatically
+- 💼 **All Financial Docs** - Insurance, loans, investments, MFs, FDs, EMIs, pensions, and more!
 
 ## 🚀 Quick Start
 
@@ -84,11 +85,11 @@ Open `http://localhost:5173` in your browser! 🎉
                │
 ┌──────────────▼──────────────────────┐
 │      FastAPI Backend                │
-│   ├─ File Validation (10MB, 10pg)  │
+│   ├─ File Validation (50MB, 100pg) │
 │   ├─ Text Extraction (PDF/DOC/OCR) │
-│   ├─ Insurance Guardrail Check      │
+│   ├─ Financial Doc Classification   │
 │   ├─ OpenAI GPT-4o-mini Call       │
-│   └─ SQLite Logging                 │
+│   └─ Supabase Analytics Logging    │
 └──────────────┬──────────────────────┘
                │
                │ API
@@ -154,30 +155,31 @@ Sacha Advisor/
 
 ## 🎯 Supported File Formats
 
-| Format | Size Limit | Pages Limit | Extraction Method |
-|--------|-----------|-------------|-------------------|
-| PDF | 10 MB | 10 | Text extraction |
-| DOC | 10 MB | N/A | Word parser |
-| DOCX | 10 MB | N/A | Word parser |
-| JPG | 10 MB | N/A | OCR |
-| PNG | 10 MB | N/A | OCR |
+| Format | Size Limit | Pages Limit | Extraction Method | Supported Docs |
+|--------|-----------|-------------|-------------------|----------------|
+| PDF | 50 MB | 100 | Text extraction | All financial docs |
+| DOC | 50 MB | N/A | Word parser | Loan agreements, policies |
+| DOCX | 50 MB | N/A | Word parser | Investment docs, statements |
+| JPG | 50 MB | N/A | OCR | Scanned certificates, passbooks |
+| PNG | 50 MB | N/A | OCR | FD receipts, bank statements |
 
 ---
 
 ## 🛡️ Safety & Guardrails
 
 ### What Sacha Advisor DOES:
-✅ Simplify insurance terminology  
-✅ Highlight benefits and exclusions  
-✅ Explain coverage and limitations  
+✅ Simplify financial terminology and jargon
+✅ Explain insurance, loans, investments, mutual funds, FDs, EMIs
+✅ Highlight benefits, features, exclusions, and limitations  
+✅ Clarify key terms, interest rates, maturity periods
 ✅ Use analogies for clarity  
 
 ### What Sacha Advisor DOES NOT:
-❌ Recommend specific insurance products  
+❌ Recommend specific financial products or investments
 ❌ Provide financial or legal advice  
-❌ Calculate premiums  
+❌ Calculate returns, interest, or premiums  
 ❌ Store uploaded files  
-❌ Process non-insurance documents  
+❌ Process non-financial documents  
 
 ---
 

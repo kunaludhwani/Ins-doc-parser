@@ -1,5 +1,7 @@
 """
 Configuration settings for Sacha Advisor backend
+Supports all financial documents: insurance, loans, investments, mutual funds, 
+fixed deposits, EMI schedules, pension plans, and more
 """
 import os
 from pydantic_settings import BaseSettings

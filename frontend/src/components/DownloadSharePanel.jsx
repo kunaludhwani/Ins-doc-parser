@@ -30,7 +30,7 @@ export default React.memo(function DownloadSharePanel({ result, language }) {
                 ? result.translatedSummary
                 : result.summary
 
-            // generatePDF is now async, so we need to await it
+            // Generate PDF asynchronously (optimized with caching)
             const { blob, filename } = await generatePDF(
                 content,
                 result.filename || 'document',
